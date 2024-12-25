@@ -16,17 +16,16 @@ import (
 
 type apiConfig struct {
 	db             *database.Queries
-	JWT_secret     string
 	POLKA_KEY      string
 	fileserverHits atomic.Int32
 }
 
 func main() {
-	fmt.Println("Running...")
+	godotenv.Load()
 	port := os.Getenv("PORT")
+	fmt.Printf("Running on %v\n", port)
 	const root = "."
 
-	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -37,34 +36,32 @@ func main() {
 
 	apiCfg := apiConfig{
 		db:             dbQueries,
-		JWT_secret:     os.Getenv("JWT_secret"),
 		POLKA_KEY:      os.Getenv("POLKA_KEY"),
 		fileserverHits: atomic.Int32{},
 	}
 
 	serveMux := http.NewServeMux()
-	serveMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(root)))))
+	serveMux.Handle("/static", apiCfg.middlewareMetricsInc(http.StripPrefix("/static", http.FileServer(http.Dir(root)))))
 	serveMux.HandleFunc("/", apiCfg.handleRunning)
 	serveMux.HandleFunc("GET /admin/healthz", handleReadiness)
 	serveMux.HandleFunc("GET /admin/metrics", apiCfg.handleMetrics)
 	serveMux.HandleFunc("POST /admin/reset", apiCfg.handleReset)
-	serveMux.HandleFunc("PUT /admin/wells_to_drill", handleToDrill)
-	serveMux.HandleFunc("GET /admin/healthz", handleReadiness)
+	serveMux.HandleFunc("GET /admin/create_grid", apiCfg.handleCreateGrid)
+	serveMux.HandleFunc("GET /admin/update_grid", apiCfg.handleUpdateGrid)
 
-	serveMux.HandleFunc("GET /api/get_well_params", handleWellParams)
+	serveMux.HandleFunc("GET /api/get_well_params", apiCfg.handleWellParams)
+	serveMux.HandleFunc("POST /api/register_order", apiCfg.registerOrders)
+	serveMux.HandleFunc("GET /api/get_order_codes", apiCfg.getOrderCodes)
+	serveMux.HandleFunc("POST /api/delete_order", apiCfg.deleteOrder)
+	serveMux.HandleFunc("GET /api/look_up_order", apiCfg.lookUpOrder)
 
-	serveMux.HandleFunc("POST /api/users", apiCfg.registerUsers)
-	serveMux.HandleFunc("PUT /api/users", apiCfg.updateUsers)
-	serveMux.HandleFunc("POST /api/login", apiCfg.loginUser)
-
-	serveMux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
-	serveMux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
-	serveMux.HandleFunc("POST /api/polka/webhooks", apiCfg.handleWebhooks)
+	
 
 	var server = &http.Server{
 		Addr:    ":" + port,
 		Handler: serveMux,
 	}
+	fmt.Println("Listening...")
 	log.Fatal(server.ListenAndServe())
 }
 
@@ -80,27 +77,28 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 //**********
 
 func respondJson(w http.ResponseWriter, r interface{}, statusCode int) {
-	dat, err := json.Marshal(r)
-	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
-		w.WriteHeader(500)
-		return
+	if r != nil {
+		dat, err := json.Marshal(r)
+		if err != nil {
+			log.Printf("Error marshalling JSON: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(statusCode)
+		w.Write(dat)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	w.Write(dat)
 }
 
 //**********
 
-func respondError(w http.ResponseWriter, s string, statusCode int) {
+func respondError(w http.ResponseWriter, s error, statusCode int) {
 	type returnVals struct {
 		Error string `json:"error"`
 	}
 
 	respBody := returnVals{
-		Error: s,
+		Error: s.Error(),
 	}
 
 	dat, err := json.Marshal(respBody)
@@ -119,5 +117,5 @@ func respondError(w http.ResponseWriter, s string, statusCode int) {
 
 func (cfg *apiConfig) handleRunning(w http.ResponseWriter, r *http.Request) {
 	respondJson(w, nil, 200)
-	w.Write([]byte(fmt.Sprintf("<html>\n<body>\n<p> Hi Docker, I pushed a new version! </p>\n</body>\n</html>", cfg.fileserverHits.Load())))
+	w.Write([]byte(fmt.Sprintf("<html>\n<body>\n<p> Hi Docker, I pushed a new version! </p>\n</body>\n</html> %v", cfg.fileserverHits.Load())))
 }

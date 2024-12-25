@@ -3,6 +3,7 @@ package main
 import(
 	"os"
 	"fmt"
+	"errors"
 	"net/http"
 )
 
@@ -24,10 +25,10 @@ func (cfg *apiConfig)handleMetrics(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig)handleReset(w http.ResponseWriter, r *http.Request) {
 	if os.Getenv("PLATFORM") != "dev_admin_peter" {
-		respondError(w, "", 403)
+		respondError(w, errors.New("Unauthorized"), 403)
 		return
 	}
-	cfg.db.DeleteUsers(r.Context())
+	cfg.db.DeleteOrders(r.Context())
 	cfg.fileserverHits.Store(0)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Hits reset to 0"))

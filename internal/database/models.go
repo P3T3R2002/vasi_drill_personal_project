@@ -5,54 +5,46 @@
 package database
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-type Place struct {
+type Code struct {
+	Code      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	OrderID   uuid.UUID
+}
+
+type Grid struct {
 	ID            uuid.UUID
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
-	NumLong       int32
-	NumVert       int32
+	NumLong       float64
+	NumVert       float64
 	ExpectedDepth int32
 }
 
-type Price struct {
-	ID            uuid.UUID
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	Name          string
-	Radious       int32
-	PricePerMeter int32
-}
-
-type RefreshToken struct {
-	Token     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	UserID    uuid.UUID
-	ExpiresAt time.Time
-	RevokedAt sql.NullTime
-}
-
-type User struct {
-	ID             uuid.UUID
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	Name           string
-	Email          string
-	HashedPassword string
+type Order struct {
+	ID                 uuid.UUID
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Name               string
+	PhoneNum           string
+	Email              string
+	LookUpCode         string
+	NumberOfWells      int32
+	PredictedFullPrice int32
 }
 
 type Well struct {
 	ID        uuid.UUID
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	PlaceID   uuid.UUID
-	PriceID   uuid.UUID
-	UserID    uuid.UUID
-	Number    int32
+	GpsLong   float64
+	GpsVert   float64
+	CellID    uuid.UUID
+	Price     int32
+	OrderID   uuid.UUID
 }

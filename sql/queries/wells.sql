@@ -1,5 +1,5 @@
 -- name: CreateWell :one
-INSERT INTO wells(id, created_at, updated_at, price_id, place_id, user_id, number)
+INSERT INTO wells(id, created_at, updated_at, gps_long, gps_vert, price, cell_id, order_id)
 VALUES (
     $1,
     NOW(),
@@ -7,30 +7,19 @@ VALUES (
     $2,
     $3,
     $4,
-    $5
+    $5, 
+    $6
 )
 RETURNING *;
+
+-- name: GetWellDetails :many
+SELECT w.id, w.gps_long, w.gps_vert, g.expected_depth, w.price FROM wells w
+INNER JOIN grid g ON g.id = w.cell_id
+WHERE w.order_id = $1;
 
 -- name: DeleteWells :exec
 DELETE FROM wells;
 
 -- name: DeleteWell :exec
 DELETE FROM wells
-WHERE id = $1;
-
--- name: DeleteWellByUser :exec
-DELETE FROM wells
-WHERE user_id = $1;
-
--- name: GetWells_ASC :many
-SELECT * FROM wells
-ORDER BY updated_at ASC;
-
--- name: GetWellsByUserID_ASC :many
-SELECT * FROM wells
-WHERE user_id = $1
-ORDER BY created_at ASC;
-
--- name: GetWell :one
-SELECT * FROM wells
 WHERE id = $1;
